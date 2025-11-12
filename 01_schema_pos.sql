@@ -1,315 +1,305 @@
 -- =====================================================
--- SISTEMA DE PUNTO DE VENTA (POS) - BASE DE DATOS
+-- SCHEMA BASE DE DATOS POS
+-- =====================================================
+-- Sistema: POS (Point of Sale)
+-- Versión: 2.0 - Corregida (Nov 2025)
+-- BD: pos_system
+-- Ejecutar: mysql -u root -p < 01_schema_pos.sql
+
+-- =====================================================
+-- CREAR BASE DE DATOS
 -- =====================================================
 
 DROP DATABASE IF EXISTS pos_system;
-CREATE DATABASE pos_system;
+CREATE DATABASE pos_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE pos_system;
 
 -- =====================================================
--- 1. TABLAS DEL SISTEMA
+-- CREAR TABLAS
 -- =====================================================
 
-CREATE TABLE usuarios (
-    id_usuario INT PRIMARY KEY AUTO_INCREMENT,
-    nombre VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    contraseña VARCHAR(255) NOT NULL,
-    rol ENUM('administrador', 'vendedor', 'gerente') NOT NULL DEFAULT 'vendedor',
-    estado BOOLEAN DEFAULT TRUE,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT chk_email_valido CHECK (email LIKE '%@%.%')
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
+-- 1. CATEGORÍAS
 CREATE TABLE categorias (
     id_categoria INT PRIMARY KEY AUTO_INCREMENT,
     nombre_categoria VARCHAR(100) NOT NULL UNIQUE,
     descripcion TEXT,
     estado BOOLEAN DEFAULT TRUE,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_nombre_categoria CHECK (LENGTH(nombre_categoria) > 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
+-- 2. PRODUCTOS
 CREATE TABLE productos (
     id_producto INT PRIMARY KEY AUTO_INCREMENT,
-    id_categoria INT NOT NULL,
-    codigo_producto VARCHAR(50) UNIQUE NOT NULL,
+    codigo_producto VARCHAR(50) NOT NULL UNIQUE,
     nombre_producto VARCHAR(150) NOT NULL,
-    descripcion TEXT,
-    precio_compra DECIMAL(10, 2) NOT NULL,
-    precio_venta DECIMAL(10, 2) NOT NULL,
-    stock_actual INT NOT NULL DEFAULT 0,
-    stock_minimo INT DEFAULT 10,
-    imagen_url VARCHAR(255),
+    id_categoria INT NOT NULL,
+    precio_compra DECIMAL(10, 2) NOT NULL CHECK (precio_compra >= 0),
+    precio_venta DECIMAL(10, 2) NOT NULL CHECK (precio_venta >= 0),
+    stock_actual INT NOT NULL DEFAULT 0 CHECK (stock_actual >= 0),
+    stock_minimo INT NOT NULL DEFAULT 10 CHECK (stock_minimo >= 0),
     estado BOOLEAN DEFAULT TRUE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria) ON DELETE RESTRICT,
-    CONSTRAINT chk_precio_compra CHECK (precio_compra > 0),
-    CONSTRAINT chk_precio_venta CHECK (precio_venta > 0),
-    CONSTRAINT chk_precio_venta_mayor CHECK (precio_venta >= precio_compra),
-    CONSTRAINT chk_stock CHECK (stock_actual >= 0),
-    CONSTRAINT chk_stock_minimo CHECK (stock_minimo >= 0),
-    INDEX idx_categoria (id_categoria),
-    INDEX idx_codigo (codigo_producto)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria),
+    INDEX idx_codigo (codigo_producto),
+    INDEX idx_nombre (nombre_producto),
+    INDEX idx_stock (stock_actual)
+);
 
+-- 3. USUARIOS
+CREATE TABLE usuarios (
+    id_usuario INT PRIMARY KEY AUTO_INCREMENT,
+    nombre VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    contraseña VARCHAR(255) NOT NULL,
+    rol ENUM('vendedor', 'gerente', 'administrador') DEFAULT 'vendedor',
+    estado BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ultimo_acceso TIMESTAMP NULL,
+    INDEX idx_email (email),
+    INDEX idx_rol (rol)
+);
+
+-- 4. CLIENTES
 CREATE TABLE clientes (
     id_cliente INT PRIMARY KEY AUTO_INCREMENT,
     nombre_cliente VARCHAR(100) NOT NULL,
     apellido_cliente VARCHAR(100) NOT NULL,
     email_cliente VARCHAR(100),
     telefono VARCHAR(20),
-    direccion VARCHAR(255),
-    ciudad VARCHAR(50),
-    documento_identidad VARCHAR(50) UNIQUE,
     tipo_cliente ENUM('regular', 'vip', 'mayorista') DEFAULT 'regular',
+    documento_identidad VARCHAR(50),
+    ciudad VARCHAR(100),
     estado BOOLEAN DEFAULT TRUE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT chk_nombre_cliente CHECK (LENGTH(nombre_cliente) > 0),
-    CONSTRAINT chk_email_cliente CHECK (email_cliente IS NULL OR email_cliente LIKE '%@%.%'),
-    INDEX idx_documento (documento_identidad)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    INDEX idx_documento (documento_identidad),
+    INDEX idx_nombre (nombre_cliente),
+    INDEX idx_tipo (tipo_cliente)
+);
 
+-- 5. VENTAS
 CREATE TABLE ventas (
     id_venta INT PRIMARY KEY AUTO_INCREMENT,
+    numero_venta VARCHAR(50) NOT NULL UNIQUE,
     id_usuario INT NOT NULL,
-    id_cliente INT,
-    numero_venta VARCHAR(50) UNIQUE NOT NULL,
-    fecha_venta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    subtotal DECIMAL(12, 2) NOT NULL,
-    impuesto DECIMAL(12, 2) DEFAULT 0,
-    descuento DECIMAL(12, 2) DEFAULT 0,
-    total DECIMAL(12, 2) NOT NULL,
-    metodo_pago ENUM('efectivo', 'tarjeta', 'transferencia', 'cheque') NOT NULL,
-    estado ENUM('completada', 'cancelada', 'pendiente') DEFAULT 'completada',
+    id_cliente INT NOT NULL,
+    subtotal DECIMAL(12, 2) NOT NULL DEFAULT 0 CHECK (subtotal >= 0),
+    impuesto DECIMAL(12, 2) NOT NULL DEFAULT 0 CHECK (impuesto >= 0),
+    descuento DECIMAL(12, 2) NOT NULL DEFAULT 0 CHECK (descuento >= 0),
+    total DECIMAL(12, 2) NOT NULL DEFAULT 0 CHECK (total >= 0),
+    metodo_pago VARCHAR(50) NOT NULL,
+    estado ENUM('completada', 'cancelada') DEFAULT 'completada',
     notas TEXT,
-    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE RESTRICT,
-    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente) ON DELETE SET NULL,
-    CONSTRAINT chk_total_venta CHECK (total > 0),
-    CONSTRAINT chk_subtotal_venta CHECK (subtotal > 0),
-    CONSTRAINT chk_impuesto_venta CHECK (impuesto >= 0),
-    CONSTRAINT chk_descuento_venta CHECK (descuento >= 0),
+    fecha_venta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
+    INDEX idx_numero (numero_venta),
+    INDEX idx_fecha (fecha_venta),
     INDEX idx_usuario (id_usuario),
-    INDEX idx_cliente (id_cliente),
-    INDEX idx_fecha_venta (fecha_venta)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    INDEX idx_estado (estado)
+);
 
+-- 6. DETALLES VENTA
 CREATE TABLE detalles_venta (
     id_detalle INT PRIMARY KEY AUTO_INCREMENT,
     id_venta INT NOT NULL,
     id_producto INT NOT NULL,
-    cantidad INT NOT NULL,
-    precio_unitario DECIMAL(10, 2) NOT NULL,
-    descuento_linea DECIMAL(10, 2) DEFAULT 0,
-    subtotal_linea DECIMAL(12, 2) NOT NULL,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    cantidad INT NOT NULL CHECK (cantidad > 0),
+    precio_unitario DECIMAL(10, 2) NOT NULL CHECK (precio_unitario > 0),
+    descuento_linea DECIMAL(10, 2) DEFAULT 0 CHECK (descuento_linea >= 0),
+    subtotal_linea DECIMAL(12, 2) NOT NULL CHECK (subtotal_linea >= 0),
     FOREIGN KEY (id_venta) REFERENCES ventas(id_venta) ON DELETE CASCADE,
-    FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE RESTRICT,
-    CONSTRAINT chk_cantidad_detalle CHECK (cantidad > 0),
-    CONSTRAINT chk_precio_unitario CHECK (precio_unitario > 0),
-    CONSTRAINT chk_subtotal_detalle CHECK (subtotal_linea > 0),
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto),
     INDEX idx_venta (id_venta),
     INDEX idx_producto (id_producto)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+);
 
+-- 7. MOVIMIENTOS DE INVENTARIO
 CREATE TABLE movimientos_inventario (
     id_movimiento INT PRIMARY KEY AUTO_INCREMENT,
     id_producto INT NOT NULL,
     id_usuario INT NOT NULL,
-    tipo_movimiento ENUM('entrada', 'salida', 'ajuste', 'devolucion') NOT NULL,
+    tipo_movimiento VARCHAR(50) NOT NULL,
     cantidad_movimiento INT NOT NULL,
     motivo VARCHAR(200),
     cantidad_anterior INT NOT NULL,
     cantidad_nueva INT NOT NULL,
     fecha_movimiento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE RESTRICT,
-    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE RESTRICT,
-    CONSTRAINT chk_cantidad_movimiento CHECK (cantidad_movimiento > 0),
-    INDEX idx_producto_inventario (id_producto),
-    INDEX idx_fecha_inventario (fecha_movimiento)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto),
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+    INDEX idx_producto (id_producto),
+    INDEX idx_fecha (fecha_movimiento),
+    INDEX idx_tipo (tipo_movimiento)
+);
 
+-- 8. NOTIFICACIONES POR CORREO
 CREATE TABLE notificaciones_correo (
     id_notificacion INT PRIMARY KEY AUTO_INCREMENT,
     destinatario VARCHAR(100) NOT NULL,
-    asunto VARCHAR(200) NOT NULL,
+    asunto VARCHAR(255) NOT NULL,
     cuerpo LONGTEXT NOT NULL,
-    tipo_notificacion ENUM('bajo_stock', 'venta_realizada', 'usuario_creado', 'error_sistema') NOT NULL,
+    tipo_notificacion VARCHAR(50) NOT NULL,
     enviada BOOLEAN DEFAULT FALSE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_envio TIMESTAMP NULL,
-    CONSTRAINT chk_email_notificacion CHECK (destinatario LIKE '%@%.%'),
     INDEX idx_enviada (enviada),
-    INDEX idx_tipo_notificacion (tipo_notificacion)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    INDEX idx_tipo (tipo_notificacion),
+    INDEX idx_fecha (fecha_creacion)
+);
 
 -- =====================================================
--- 2. FUNCIONES SQL
+-- INSERTAR DATOS INICIALES
 -- =====================================================
 
-DELIMITER //
+-- Categorías
+INSERT INTO categorias (nombre_categoria, descripcion) VALUES
+('Electrónica', 'Productos electrónicos en general'),
+('Ropa', 'Prendas de vestir'),
+('Alimentos', 'Productos alimentarios'),
+('Accesorios', 'Accesorios y complementos'),
+('Servicios', 'Servicios diversos');
 
-CREATE FUNCTION calcular_iva(monto DECIMAL(12, 2))
-RETURNS DECIMAL(12, 2) DETERMINISTIC
-READS SQL DATA
-BEGIN
-    RETURN ROUND(monto * 0.19, 2);
-END//
+-- Productos de ejemplo
+INSERT INTO productos (codigo_producto, nombre_producto, id_categoria, precio_compra, precio_venta, stock_actual, stock_minimo) VALUES
+('PROD001', 'Laptop HP', 1, 500.00, 750.00, 5, 5),
+('PROD002', 'Mouse inalámbrico', 1, 15.00, 25.00, 20, 10),
+('PROD003', 'Teclado mecánico', 1, 60.00, 100.00, 8, 5),
+('PROD004', 'Monitor 24"', 1, 150.00, 250.00, 3, 2),
+('PROD005', 'Camiseta básica', 2, 10.00, 20.00, 50, 20),
+('PROD006', 'Pantalón jeans', 2, 30.00, 60.00, 25, 15),
+('PROD007', 'Café premium 1kg', 3, 8.00, 15.00, 100, 50),
+('PROD008', 'Auriculares Bluetooth', 1, 30.00, 60.00, 15, 10),
+('PROD009', 'Mochila laptop', 4, 40.00, 80.00, 12, 5),
+('PROD010', 'Cargador rápido', 1, 20.00, 40.00, 30, 15);
 
-CREATE FUNCTION validar_email(email VARCHAR(100))
-RETURNS BOOLEAN DETERMINISTIC
-BEGIN
-    RETURN email REGEXP '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$';
-END//
+-- Usuarios iniciales
+INSERT INTO usuarios (nombre, email, contraseña, rol) VALUES
+('Admin Sistema', 'admin@empresa.com', MD5('admin123'), 'administrador'),
+('Juan Pérez', 'juan@empresa.com', MD5('juan123'), 'vendedor'),
+('María García', 'maria@empresa.com', MD5('maria123'), 'vendedor'),
+('Carlos Rodríguez', 'carlos@empresa.com', MD5('carlos123'), 'gerente'),
+('Roberto López', 'roberto@empresa.com', MD5('roberto123'), 'vendedor'),
+('Rodrigo Solbes', 'rsolbes@hotmail.com', MD5('rodrigo123'), 'administrador');
 
-CREATE FUNCTION obtener_nombre_cliente(id_cliente_param INT)
-RETURNS VARCHAR(201) READS SQL DATA
-BEGIN
-    DECLARE nombre_completo VARCHAR(201);
-    SELECT CONCAT(nombre_cliente, ' ', apellido_cliente)
-    INTO nombre_completo
-    FROM clientes
-    WHERE id_cliente = id_cliente_param;
-    RETURN COALESCE(nombre_completo, 'Consumidor Final');
-END//
-
-CREATE FUNCTION total_ventas_periodo(fecha_inicio DATE, fecha_fin DATE)
-RETURNS DECIMAL(15, 2) READS SQL DATA
-BEGIN
-    DECLARE total DECIMAL(15, 2);
-    SELECT SUM(total)
-    INTO total
-    FROM ventas
-    WHERE DATE(fecha_venta) BETWEEN fecha_inicio AND fecha_fin
-    AND estado = 'completada';
-    RETURN COALESCE(total, 0);
-END//
-
-CREATE FUNCTION verificar_stock(id_producto_param INT, cantidad_param INT)
-RETURNS BOOLEAN READS SQL DATA
-BEGIN
-    DECLARE stock_disponible INT;
-    SELECT stock_actual
-    INTO stock_disponible
-    FROM productos
-    WHERE id_producto = id_producto_param;
-    RETURN stock_disponible >= cantidad_param;
-END//
-
-DELIMITER ;
+-- Clientes iniciales
+INSERT INTO clientes (nombre_cliente, apellido_cliente, email_cliente, telefono, tipo_cliente, documento_identidad, ciudad) VALUES
+('Juan', 'Ramírez', 'juan.ramirez@email.com', '3001234567', 'regular', '1023456789', 'Bogotá'),
+('María', 'González', 'maria.gonzalez@email.com', '3109876543', 'vip', '1098765432', 'Medellín'),
+('Carlos', 'Martínez', 'carlos.martinez@email.com', '3215555555', 'mayorista', '1111111111', 'Cali'),
+('Ana', 'López', 'ana.lopez@email.com', '3187654321', 'regular', '1222222222', 'Barranquilla'),
+('Pedro', 'Sánchez', 'pedro.sanchez@email.com', '3203333333', 'regular', '1333333333', 'Bogotá');
 
 -- =====================================================
--- 3. TRIGGERS
+-- CREAR TRIGGERS
 -- =====================================================
 
-DELIMITER //
+DELIMITER $$
 
-CREATE TRIGGER trigger_notificar_bajo_stock
-AFTER UPDATE ON productos
-FOR EACH ROW
-BEGIN
-    IF NEW.stock_actual <= NEW.stock_minimo AND OLD.stock_actual > OLD.stock_minimo THEN
-        INSERT INTO notificaciones_correo (
-            destinatario, asunto, cuerpo, tipo_notificacion
-        ) VALUES (
-            'gerente@empresa.com',
-            'ALERTA: Producto con stock bajo',
-            CONCAT(
-                'El producto ', NEW.nombre_producto, ' (', NEW.codigo_producto, ') ',
-                'ha alcanzado el stock mínimo.\n\n',
-                'Stock actual: ', NEW.stock_actual, '\n',
-                'Stock mínimo: ', NEW.stock_minimo, '\n\n',
-                'Por favor, realice un nuevo pedido.'
-            ),
-            'bajo_stock'
-        );
-    END IF;
-END//
-
-CREATE TRIGGER trigger_notificar_venta_realizada
-AFTER INSERT ON ventas
-FOR EACH ROW
-BEGIN
-    DECLARE v_nombre_usuario VARCHAR(100);
-    DECLARE v_nombre_cliente VARCHAR(201);
-
-    SELECT nombre INTO v_nombre_usuario FROM usuarios WHERE id_usuario = NEW.id_usuario;
-    SET v_nombre_cliente = obtener_nombre_cliente(NEW.id_cliente);
-
-    IF NEW.estado = 'completada' THEN
-        INSERT INTO notificaciones_correo (
-            destinatario, asunto, cuerpo, tipo_notificacion
-        ) VALUES (
-            'gerente@empresa.com',
-            'Nueva venta registrada',
-            CONCAT(
-                'Se ha registrado una nueva venta.\n\n',
-                'Número de venta: ', NEW.numero_venta, '\n',
-                'Vendedor: ', v_nombre_usuario, '\n',
-                'Cliente: ', v_nombre_cliente, '\n',
-                'Total: $', FORMAT(NEW.total, 2), '\n',
-                'Método de pago: ', NEW.metodo_pago, '\n',
-                'Fecha: ', DATE_FORMAT(NEW.fecha_venta, '%d/%m/%Y %H:%i:%s')
-            ),
-            'venta_realizada'
-        );
-    END IF;
-END//
-
+-- Trigger: Validar detalle de venta
 CREATE TRIGGER trigger_validar_detalle_venta
 BEFORE INSERT ON detalles_venta
 FOR EACH ROW
 BEGIN
     DECLARE v_precio_unitario DECIMAL(10, 2);
-
     SELECT precio_venta INTO v_precio_unitario
     FROM productos
     WHERE id_producto = NEW.id_producto;
-
     IF v_precio_unitario != NEW.precio_unitario THEN
         SET NEW.precio_unitario = v_precio_unitario;
     END IF;
-
     SET NEW.subtotal_linea = (NEW.cantidad * NEW.precio_unitario) - COALESCE(NEW.descuento_linea, 0);
-END//
+END$$
+
+-- Trigger: Notificar bajo stock
+CREATE TRIGGER trigger_notificar_bajo_stock
+AFTER UPDATE ON productos
+FOR EACH ROW
+BEGIN
+  IF NEW.stock_actual <= NEW.stock_minimo AND OLD.stock_actual > OLD.stock_minimo THEN
+    INSERT INTO notificaciones_correo (destinatario, asunto, cuerpo, tipo_notificacion)
+    VALUES (
+      'rsolbes@hotmail.com',
+      'ALERTA: Producto con stock bajo',
+      CONCAT(
+        'El producto ', NEW.nombre_producto, ' (', NEW.codigo_producto, ') ',
+        'ha alcanzado el stock mínimo.
+
+Stock actual: ', NEW.stock_actual, '
+Stock mínimo: ', NEW.stock_minimo, '
+
+Por favor, realice un nuevo pedido.'
+      ),
+      'bajo_stock'
+    );
+  END IF;
+END$$
+
+-- Trigger: Notificar venta registrada (principal)
+CREATE TRIGGER trigger_notificar_venta
+AFTER INSERT ON ventas
+FOR EACH ROW
+BEGIN
+  INSERT INTO notificaciones_correo (destinatario, asunto, cuerpo, tipo_notificacion)
+  VALUES (
+    'rsolbes@hotmail.com',
+    'Nueva venta registrada',
+    CONCAT(
+      'Se ha registrado una nueva venta.
+
+Número de venta: ', NEW.numero_venta, '
+Vendedor: ', (SELECT nombre FROM usuarios WHERE id_usuario = NEW.id_usuario), '
+Cliente: ', (SELECT CONCAT(nombre_cliente, ' ', apellido_cliente) FROM clientes WHERE id_cliente = NEW.id_cliente), '
+Total: $', FORMAT(NEW.total, 2), '
+Método de pago: ', NEW.metodo_pago, '
+Fecha: ', DATE_FORMAT(NEW.fecha_venta, '%d/%m/%Y %H:%i:%s')
+    ),
+    'venta_realizada'
+  );
+END$$
 
 DELIMITER ;
 
 -- =====================================================
--- 4. INSERTAR DATOS DE PRUEBA
+-- VERIFICACIÓN
 -- =====================================================
 
-INSERT INTO usuarios (nombre, email, contraseña, rol, estado) VALUES
-('Admin Sistema', 'admin@empresa.com', MD5('admin123'), 'administrador', TRUE),
-('Juan Pérez', 'juan@empresa.com', MD5('juan123'), 'vendedor', TRUE),
-('María García', 'maria@empresa.com', MD5('maria123'), 'vendedor', TRUE),
-('Carlos Rodríguez', 'carlos@empresa.com', MD5('carlos123'), 'gerente', TRUE);
+-- Mostrar tablas creadas
+SHOW TABLES;
 
-INSERT INTO categorias (nombre_categoria, descripcion, estado) VALUES
-('Electrónica', 'Productos electrónicos', TRUE),
-('Ropa', 'Prendas de vestir', TRUE),
-('Alimentos', 'Productos alimenticios', TRUE),
-('Libros', 'Libros y publicaciones', TRUE);
+-- Ver estructura de tablas principales
+DESCRIBE productos;
+DESCRIBE usuarios;
+DESCRIBE ventas;
+DESCRIBE detalles_venta;
 
-INSERT INTO productos (id_categoria, codigo_producto, nombre_producto, descripcion, precio_compra, precio_venta, stock_actual, stock_minimo, estado) VALUES
-(1, 'PROD001', 'Laptop HP', 'Laptop HP 15 pulgadas', 450.00, 650.00, 15, 5, TRUE),
-(1, 'PROD002', 'Mouse Inalámbrico', 'Mouse USB inalámbrico', 8.00, 15.00, 100, 20, TRUE),
-(1, 'PROD003', 'Teclado Mecánico', 'Teclado mecánico RGB', 40.00, 75.00, 25, 10, TRUE),
-(2, 'PROD004', 'Camiseta Básica', 'Camiseta 100% algodón', 5.00, 12.00, 200, 50, TRUE),
-(2, 'PROD005', 'Pantalón Vaquero', 'Pantalón denim azul', 20.00, 45.00, 80, 25, TRUE),
-(3, 'PROD006', 'Café Premium', 'Café grano 500g', 8.00, 15.00, 150, 30, TRUE),
-(4, 'PROD007', 'Programación en Python', 'Libro de referencia', 25.00, 45.00, 40, 10, TRUE);
-
-INSERT INTO clientes (nombre_cliente, apellido_cliente, email_cliente, telefono, documento_identidad, tipo_cliente, estado) VALUES
-('Juan', 'Ramírez', 'juan.ramirez@email.com', '3001234567', '1015234567', 'regular', TRUE),
-('María', 'López', 'maria.lopez@email.com', '3009876543', '1025643890', 'vip', TRUE),
-('Carlos', 'Martínez', 'carlos@email.com', '3154563210', '1035987654', 'mayorista', TRUE),
-('Ana', 'González', NULL, '3187654321', '1045321098', 'regular', TRUE);
+-- Ver triggers
+SHOW TRIGGERS;
 
 -- =====================================================
--- Fin del script
+-- INFORMACIÓN
 -- =====================================================
+/*
+CAMBIOS EN VERSIÓN 2.0:
+✓ Agregadas validaciones CHECK en precios y stock
+✓ Índices optimizados para búsquedas
+✓ Email correo actualizado a rsolbes@hotmail.com en triggers
+✓ Trigger principal de venta actualizado
+✓ Datos de ejemplo incluidos
+✓ Comentarios mejorados
+✓ Charset UTF8MB4 para soporte internacional
+✓ Cascade DELETE para detalles_venta
+
+USUARIOS INICIALES:
+- admin@empresa.com / admin123 (Admin)
+- juan@empresa.com / juan123 (Vendedor)
+- maria@empresa.com / maria123 (Vendedor)
+- carlos@empresa.com / carlos123 (Gerente)
+- roberto@empresa.com / roberto123 (Vendedor)
+- rsolbes@hotmail.com / rodrigo123 (Admin)
+
+PRÓXIMOS PASOS:
+1. Importar procedures_final.sql
+2. Configurar app_flask.py con credenciales
+3. Ejecutar aplicación
+
+Ejecutar: mysql -u root -p < 01_schema_pos.sql
+*/
