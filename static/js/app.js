@@ -1,0 +1,3 @@
+function mostrarAlerta(m,t='success'){const a=document.createElement('div');a.className=`alert alert-${t}`;a.textContent=m;const c=document.querySelector('.container');if(c)c.insertBefore(a,c.firstChild);setTimeout(()=>a.remove(),5000);}
+async function hacerRequest(u,m='GET',d=null){const o={method:m,headers:{'Content-Type':'application/json'}};if(d)o.body=JSON.stringify(d);try{const r=await fetch(u,o);return await r.json();}catch(e){return null;}}
+console.log('✓ App.js cargado');

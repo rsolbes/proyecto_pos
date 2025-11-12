@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Agregar Clientes - POS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">➕ Agregar Nuevo Cliente</h2>
+
+    <form id="formCliente">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Nombre:</label>
+                <input type="text" name="nombre_cliente" required>
+            </div>
+            <div class="form-group">
+                <label>Apellido:</label>
+                <input type="text" name="apellido_cliente" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Documento Identidad:</label>
+                <input type="text" name="documento_identidad" placeholder="ej: 1234567890" required>
+            </div>
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" name="email_cliente" placeholder="cliente@email.com">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Teléfono:</label>
+                <input type="tel" name="telefono" placeholder="3001234567">
+            </div>
+            <div class="form-group">
+                <label>Ciudad:</label>
+                <input type="text" name="ciudad" placeholder="Bogotá">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Tipo Cliente:</label>
+            <select name="tipo_cliente" required>
+                <option value="regular">Regular</option>
+                <option value="vip">VIP</option>
+                <option value="mayorista">Mayorista</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-success btn-block">✓ Crear Cliente</button>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('formCliente').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const datos = {
+        nombre_cliente: e.target.nombre_cliente.value.trim(),
+        apellido_cliente: e.target.apellido_cliente.value.trim(),
+        documento_identidad: e.target.documento_identidad.value.trim(),
+        email_cliente: e.target.email_cliente.value.trim(),
+        telefono: e.target.telefono.value.trim(),
+        ciudad: e.target.ciudad.value.trim(),
+        tipo_cliente: e.target.tipo_cliente.value
+    };
+    
+    const resultado = await hacerRequest('/api/clientes', 'POST', datos);
+    
+    if (resultado && resultado.exito) {
+        mostrarAlerta('Cliente creado exitosamente', 'success');
+        document.getElementById('formCliente').reset();
+    } else {
+        mostrarAlerta(resultado?.error || 'Error al crear cliente', 'danger');
+    }
+});
+</script>
+{% endblock %}

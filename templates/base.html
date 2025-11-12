@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}POS{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% if usuario_autenticado %}
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="logo">🛒 POS</h1>
+            <ul class="nav-menu">
+                <li><a href="/" class="nav-link">Dashboard</a></li>
+                <li><a href="/ventas" class="nav-link">Ventas</a></li>
+                <li><a href="/productos" class="nav-link">Productos</a></li>
+                {% if usuario_rol == 'administrador' %}
+                <li><a href="/agregar-productos" class="nav-link">➕ Agregar Producto</a></li>
+                {% endif %}
+                <li><a href="/clientes" class="nav-link">Clientes</a></li>
+                {% if usuario_rol == 'administrador' %}
+                <li><a href="/agregar-clientes" class="nav-link">➕ Agregar Cliente</a></li>
+                <li><a href="/historial-ventas" class="nav-link">Historial</a></li>
+                <li><a href="/reportes" class="nav-link">Reportes</a></li>
+                <li><a href="/usuarios" class="nav-link">Usuarios</a></li>
+                {% endif %}
+                <li><a href="/logout" class="nav-link logout">Cerrar Sesión</a></li>
+            </ul>
+        </div>
+    </nav>
+    {% endif %}
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

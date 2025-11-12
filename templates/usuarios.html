@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Usuarios - POS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">👤 Gestión de Usuarios</h2>
+
+    <button class="btn btn-primary" onclick="mostrarFormularioNuevoUsuario()">➕ Nuevo Usuario</button>
+
+    <div id="formularioNuevo" style="display: none; margin-top: 20px; background: #f8fafc; padding: 20px; border-radius: 10px;">
+        <h3 style="color: #6366f1; margin-bottom: 15px;">Crear Nuevo Usuario</h3>
+        <form id="formNuevoUsuario">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nombre:</label>
+                    <input type="text" name="nombre" required>
+                </div>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" name="email" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Contraseña:</label>
+                    <input type="password" name="contraseña" required>
+                </div>
+                <div class="form-group">
+                    <label>Rol:</label>
+                    <select name="rol" required>
+                        <option value="vendedor">Vendedor</option>
+                        <option value="gerente">Gerente</option>
+                        <option value="administrador">Administrador</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" class="btn btn-success">✓ Crear Usuario</button>
+                <button type="button" class="btn" onclick="ocultarFormularioNuevoUsuario()" style="background: #94a3b8; color: white;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+
+    <table style="margin-top: 20px;">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th>Creado</th>
+            </tr>
+        </thead>
+        <tbody id="usuariosTabla">
+            <tr><td colspan="5" style="text-align: center;">Cargando...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function mostrarFormularioNuevoUsuario() {
+    document.getElementById('formularioNuevo').style.display = 'block';
+}
+
+function ocultarFormularioNuevoUsuario() {
+    document.getElementById('formularioNuevo').style.display = 'none';
+}
+
+async function cargarUsuariosTabla() {
+    console.log('Cargando usuarios...');
+    const usuarios = await hacerRequest('/api/usuarios');
+    console.log('Usuarios:', usuarios);
+    const tabla = document.getElementById('usuariosTabla');
+    tabla.innerHTML = '';
+
+    if (!usuarios || usuarios.length === 0) {
+        tabla.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay usuarios</td></tr>';
+        return;
+    }
+
+    usuarios.forEach(u => {
+        const estado = u.estado ? '✓ Activo' : '✗ Inactivo';
+        tabla.innerHTML += `
+            <tr>
+                <td><strong>${u.nombre}</strong></td>
+                <td>${u.email}</td>
+                <td><span class="badge">${u.rol}</span></td>
+                <td>${estado}</td>
+                <td>${new Date(u.fecha_creacion).toLocaleDateString('es-CO')}</td>
+            </tr>
+        `;
+    });
+}
+
+document.getElementById('formNuevoUsuario').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const datos = {
+        nombre: e.target.nombre.value,
+        email: e.target.email.value,
+        contraseña: e.target.contraseña.value,
+        rol: e.target.rol.value
+    };
+
+    const resultado = await hacerRequest('/api/usuarios', 'POST', datos);
+    console.log('Resultado:', resultado);
+    
+    if (resultado && resultado.exito) {
+        mostrarAlerta('Usuario creado exitosamente', 'success');
+        document.getElementById('formNuevoUsuario').reset();
+        ocultarFormularioNuevoUsuario();
+        cargarUsuariosTabla();
+    } else {
+        mostrarAlerta(resultado?.error || 'Error al crear usuario', 'danger');
+    }
+});
+
+document.addEventListener('DOMContentLoaded', cargarUsuariosTabla);
+</script>
+{% endblock %}

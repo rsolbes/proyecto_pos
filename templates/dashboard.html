@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - POS{% endblock %}
+
+{% block content %}
+<div class="welcome">
+    <h1>¡Bienvenido, {{ usuario_nombre }}! 👋</h1>
+    <p>Rol: <strong>{{ usuario_rol }}</strong></p>
+</div>
+
+<div class="grid">
+    <div class="stat-card">
+        <h3>💰 Ventas Hoy</h3>
+        <div class="value">${{ "%.2f"|format(total_hoy) }}</div>
+    </div>
+    <div class="stat-card success">
+        <h3>📈 Ventas Este Mes</h3>
+        <div class="value">${{ "%.2f"|format(total_mes) }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>📦 Productos en Stock</h3>
+        <div class="value">{{ cantidad_productos }}</div>
+    </div>
+    <div class="stat-card warning">
+        <h3>⚠️ Bajo Stock</h3>
+        <div class="value">{{ bajo_stock }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2 class="card-title">🚀 Acciones Rápidas</h2>
+    <div class="menu-grid">
+        <a href="/ventas" class="menu-item">
+            <div class="icon">💳</div>
+            <h3>Nueva Venta</h3>
+        </a>
+        <a href="/productos" class="menu-item">
+            <div class="icon">📦</div>
+            <h3>Productos</h3>
+        </a>
+        <a href="/clientes" class="menu-item">
+            <div class="icon">👥</div>
+            <h3>Clientes</h3>
+        </a>
+        <a href="/historial-ventas" class="menu-item">
+            <div class="icon">📊</div>
+            <h3>Historial</h3>
+        </a>
+        {% if usuario_rol in ['gerente', 'administrador'] %}
+        <a href="/reportes" class="menu-item">
+            <div class="icon">📈</div>
+            <h3>Reportes</h3>
+        </a>
+        {% endif %}
+        {% if usuario_rol == 'administrador' %}
+        <a href="/usuarios" class="menu-item">
+            <div class="icon">👤</div>
+            <h3>Usuarios</h3>
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

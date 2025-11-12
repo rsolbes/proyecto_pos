@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+notificaciones_pos.log
+
+# Backups
+*.sql.bak
+backup_*.sql
+
+# Environment
+.env
+.env.local
+
+# macOS
+.DS_Store
+
+# Sistema
+.thumbs.db

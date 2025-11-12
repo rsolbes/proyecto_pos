@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes - POS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">📈 Reportes de Ventas</h2>
+
+    <div class="form-row" style="margin-bottom: 20px;">
+        <div class="form-group">
+            <label>Fecha Inicio:</label>
+            <input type="date" id="fechaInicio">
+        </div>
+        <div class="form-group">
+            <label>Fecha Fin:</label>
+            <input type="date" id="fechaFin">
+        </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="generarReporte()">📊 Generar Reporte</button>
+    <button class="btn btn-success" onclick="exportarReporte()" style="margin-left: 10px;">⬇️ Descargar CSV</button>
+
+    <table id="reporteTabla" style="margin-top: 20px; display: none;">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Transacciones</th>
+                <th>Subtotal</th>
+                <th>IVA (19%)</th>
+                <th>Total</th>
+                <th>Método</th>
+                <th>Vendedor</th>
+            </tr>
+        </thead>
+        <tbody id="reporteBody">
+        </tbody>
+    </table>
+
+    <div id="totalesReporte" style="margin-top: 20px; display: none; background: #f0f0f0; padding: 15px; border-radius: 8px;">
+        <h3>Totales del Período</h3>
+        <p><strong>Total Ventas:</strong> <span id="totalVentas">$0.00</span></p>
+        <p><strong>Total IVA:</strong> <span id="totalIVA">$0.00</span></p>
+        <p><strong>Total General:</strong> <span id="totalGeneral">$0.00</span></p>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const hoy = new Date();
+const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+document.getElementById('fechaInicio').valueAsDate = hace30;
+document.getElementById('fechaFin').valueAsDate = hoy;
+
+let reporteActual = [];
+
+async function generarReporte() {
+    const inicio = document.getElementById('fechaInicio').value;
+    const fin = document.getElementById('fechaFin').value;
+
+    const datos = { fecha_inicio: inicio, fecha_fin: fin };
+    const reporte = await hacerRequest('/api/reportes/ventas', 'POST', datos);
+
+    const tabla = document.getElementById('reporteTabla');
+    const body = document.getElementById('reporteBody');
+    body.innerHTML = '';
+
+    if (!reporte || reporte.length === 0) {
+        mostrarAlerta('No hay datos para este período', 'info');
+        tabla.style.display = 'none';
+        document.getElementById('totalesReporte').style.display = 'none';
+        return;
+    }
+
+    reporteActual = reporte;
+    let totalVentas = 0, totalIVA = 0, totalGeneral = 0;
+
+    reporte.forEach(r => {
+        body.innerHTML += `
+            <tr>
+                <td>${new Date(r.fecha).toLocaleDateString('es-CO')}</td>
+                <td>${r.cantidad_transacciones}</td>
+                <td>$${parseFloat(r.subtotal_total).toFixed(2)}</td>
+                <td>$${parseFloat(r.impuesto_total).toFixed(2)}</td>
+                <td><strong>$${parseFloat(r.total_venta).toFixed(2)}</strong></td>
+                <td>${r.metodo_pago}</td>
+                <td>${r.vendedor}</td>
+            </tr>
+        `;
+        totalVentas += parseFloat(r.subtotal_total);
+        totalIVA += parseFloat(r.impuesto_total);
+        totalGeneral += parseFloat(r.total_venta);
+    });
+
+    document.getElementById('totalVentas').textContent = '$' + totalVentas.toFixed(2);
+    document.getElementById('totalIVA').textContent = '$' + totalIVA.toFixed(2);
+    document.getElementById('totalGeneral').textContent = '$' + totalGeneral.toFixed(2);
+
+    tabla.style.display = 'table';
+    document.getElementById('totalesReporte').style.display = 'block';
+}
+
+function exportarReporte() {
+    if (reporteActual.length === 0) {
+        mostrarAlerta('Genera un reporte primero', 'warning');
+        return;
+    }
+    exportarCSV(reporteActual, 'reporte_ventas');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Historial de Ventas - POS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">📊 Historial de Ventas</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Número</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Vendedor</th>
+                <th>Total</th>
+                <th>Método</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody id="ventasTabla">
+            <tr><td colspan="7" style="text-align: center;">Cargando...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function cargarVentasTabla() {
+    const ventas = await hacerRequest('/api/ventas-list');
+    const tabla = document.getElementById('ventasTabla');
+    tabla.innerHTML = '';
+
+    if (!ventas || ventas.length === 0) {
+        tabla.innerHTML = '<tr><td colspan="7" style="text-align: center;">No hay ventas</td></tr>';
+        return;
+    }
+
+    ventas.forEach(v => {
+        const color = v.estado === 'completada' ? 'green' : 'red';
+        tabla.innerHTML += `
+            <tr>
+                <td><strong>${v.numero_venta}</strong></td>
+                <td>${new Date(v.fecha_venta).toLocaleDateString('es-CO')}</td>
+                <td>${v.cliente}</td>
+                <td>${v.nombre_vendedor}</td>
+                <td><strong>$${parseFloat(v.total).toFixed(2)}</strong></td>
+                <td>${v.metodo_pago}</td>
+                <td><span style="color: ${color};">● ${v.estado}</span></td>
+            </tr>
+        `;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', cargarVentasTabla);
+</script>
+{% endblock %}

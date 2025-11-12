@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle de Venta - POS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">📄 Detalle de Venta #{{ venta.numero_venta }}</h2>
+
+    {% if venta %}
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <div>
+            <p><strong>Fecha:</strong> {{ venta.fecha_venta }}</p>
+            <p><strong>Vendedor:</strong> {{ venta.nombre_vendedor }}</p>
+            <p><strong>Cliente:</strong> {{ venta.cliente }}</p>
+        </div>
+        <div>
+            <p><strong>Método:</strong> {{ venta.metodo_pago }}</p>
+            <p><strong>Estado:</strong> {{ venta.estado }}</p>
+            <p><strong>Notas:</strong> {{ venta.notas or 'Sin notas' }}</p>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Precio</th>
+                <th>Cantidad</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for detalle in detalles %}
+            <tr>
+                <td>{{ detalle.nombre_producto }}</td>
+                <td>${{ detalle.precio_unitario }}</td>
+                <td>{{ detalle.cantidad }}</td>
+                <td>${{ (detalle.cantidad * detalle.precio_unitario)|round(2) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 20px; text-align: right;">
+        <p><strong>Subtotal:</strong> ${{ venta.subtotal }}</p>
+        <p><strong>IVA (19%):</strong> ${{ venta.impuesto }}</p>
+        <p><strong>Descuento:</strong> ${{ venta.descuento }}</p>
+        <p style="font-size: 20px; color: #667eea;"><strong>Total:</strong> ${{ venta.total }}</p>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <button class="btn btn-primary" onclick="imprimir('venta-detalle')">🖨️ Imprimir</button>
+        {% if venta.estado == 'completada' %}
+        <button class="btn btn-danger" onclick="cancelarVenta()">✗ Cancelar Venta</button>
+        {% endif %}
+    </div>
+    {% else %}
+    <p>Venta no encontrada</p>
+    {% endif %}
+</div>
+
+<script>
+function cancelarVenta() {
+    if (confirm('¿Seguro que deseas cancelar esta venta?')) {
+        mostrarAlerta('Función de cancelación en desarrollo', 'info');
+    }
+}
+</script>
+{% endblock %}

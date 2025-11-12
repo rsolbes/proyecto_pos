@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes - POS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">👥 Gestión de Clientes</h2>
+
+    <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label>🔍 Buscar Cliente:</label>
+        <input type="text" id="buscarCliente" placeholder="Buscar por nombre, email o documento..." autocomplete="off">
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Teléfono</th>
+                <th>Tipo</th>
+                <th>Documento</th>
+                <th>Ciudad</th>
+                {% if usuario_rol == 'administrador' %}<th>Acciones</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody id="clientesTabla">
+            <tr><td colspan="{% if usuario_rol == 'administrador' %}7{% else %}6{% endif %}" style="text-align: center;">Cargando...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- MODAL EDITAR -->
+<div id="modalEditar" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+        <h2 style="color: #6366f1; margin-bottom: 1.5rem;">✏️ Editar Cliente</h2>
+        
+        <form id="formEditar">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nombre:</label>
+                    <input type="text" id="editNombre" required>
+                </div>
+                <div class="form-group">
+                    <label>Apellido:</label>
+                    <input type="text" id="editApellido" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="editEmail">
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Teléfono:</label>
+                    <input type="tel" id="editTelefono">
+                </div>
+                <div class="form-group">
+                    <label>Tipo Cliente:</label>
+                    <select id="editTipo" required>
+                        <option value="regular">Regular</option>
+                        <option value="vip">VIP</option>
+                        <option value="mayorista">Mayorista</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Ciudad:</label>
+                <input type="text" id="editCiudad">
+            </div>
+            
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-success">✓ Guardar</button>
+                <button type="button" class="btn" onclick="cerrarModal()" style="background: #94a3b8; color: white;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const esAdmin = '{{ usuario_rol }}' === 'administrador';
+let clientesCompleto = [];
+let clienteEditando = null;
+
+async function cargarClientesTabla() {
+    const clientes = await hacerRequest('/api/clientes');
+    clientesCompleto = clientes || [];
+    renderTabla(clientesCompleto);
+}
+
+function renderTabla(clientes) {
+    const tabla = document.getElementById('clientesTabla');
+    tabla.innerHTML = '';
+
+    if (!clientes || clientes.length === 0) {
+        tabla.innerHTML = `<tr><td colspan="${esAdmin ? 7 : 6}" style="text-align: center;">No hay clientes</td></tr>`;
+        return;
+    }
+
+    clientes.forEach(c => {
+        let html = `
+            <tr>
+                <td><strong>${c.nombre_cliente} ${c.apellido_cliente}</strong></td>
+                <td>${c.email_cliente || '-'}</td>
+                <td>${c.telefono || '-'}</td>
+                <td><span class="badge">${c.tipo_cliente}</span></td>
+                <td>${c.documento_identidad || '-'}</td>
+                <td>${c.ciudad || '-'}</td>
+        `;
+        
+        if (esAdmin) {
+            html += `
+                <td>
+                    <button class="btn btn-primary" onclick="abrirModal(${JSON.stringify(c).replace(/"/g, '&quot;')})">✏️ Editar</button>
+                </td>
+            `;
+        }
+        
+        html += '</tr>';
+        tabla.innerHTML += html;
+    });
+}
+
+document.getElementById('buscarCliente').addEventListener('input', (e) => {
+    const busqueda = e.target.value.toLowerCase();
+    
+    const filtrados = clientesCompleto.filter(c =>
+        (c.nombre_cliente + ' ' + c.apellido_cliente).toLowerCase().includes(busqueda) ||
+        (c.email_cliente || '').toLowerCase().includes(busqueda) ||
+        (c.documento_identidad || '').toLowerCase().includes(busqueda)
+    );
+    
+    renderTabla(filtrados);
+});
+
+function abrirModal(cliente) {
+    if (!esAdmin) {
+        mostrarAlerta('No tienes permiso para editar clientes', 'danger');
+        return;
+    }
+    
+    clienteEditando = cliente;
+    document.getElementById('editNombre').value = cliente.nombre_cliente;
+    document.getElementById('editApellido').value = cliente.apellido_cliente;
+    document.getElementById('editEmail').value = cliente.email_cliente || '';
+    document.getElementById('editTelefono').value = cliente.telefono || '';
+    document.getElementById('editTipo').value = cliente.tipo_cliente;
+    document.getElementById('editCiudad').value = cliente.ciudad || '';
+    document.getElementById('modalEditar').style.display = 'flex';
+}
+
+function cerrarModal() {
+    document.getElementById('modalEditar').style.display = 'none';
+    clienteEditando = null;
+}
+
+document.getElementById('formEditar').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (!esAdmin) {
+        mostrarAlerta('No tienes permiso para editar clientes', 'danger');
+        return;
+    }
+    
+    const datos = {
+        nombre_cliente: document.getElementById('editNombre').value,
+        apellido_cliente: document.getElementById('editApellido').value,
+        email_cliente: document.getElementById('editEmail').value,
+        telefono: document.getElementById('editTelefono').value,
+        tipo_cliente: document.getElementById('editTipo').value,
+        ciudad: document.getElementById('editCiudad').value
+    };
+    
+    const resultado = await hacerRequest(`/api/clientes/${clienteEditando.id_cliente}`, 'PUT', datos);
+    
+    if (resultado && resultado.exito) {
+        mostrarAlerta('Cliente actualizado exitosamente', 'success');
+        cerrarModal();
+        cargarClientesTabla();
+    } else {
+        mostrarAlerta(resultado?.error || 'Error al actualizar cliente', 'danger');
+    }
+});
+
+document.addEventListener('DOMContentLoaded', cargarClientesTabla);
+</script>
+{% endblock %}

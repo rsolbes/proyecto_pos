@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Agregar Productos - POS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">➕ Agregar/Actualizar Producto</h2>
+
+    <!-- TABS -->
+    <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 1rem;">
+        <button class="tab-btn active" onclick="cambiarTab('nuevo')" style="background: none; border: none; padding: 0.5rem 1rem; cursor: pointer; font-weight: 600; color: #6366f1; border-bottom: 3px solid #6366f1;">
+            ➕ Nuevo Producto
+        </button>
+        <button class="tab-btn" onclick="cambiarTab('stock')" style="background: none; border: none; padding: 0.5rem 1rem; cursor: pointer; font-weight: 600; color: #64748b;">
+            📦 Agregar Stock
+        </button>
+    </div>
+
+    <!-- TAB 1: NUEVO PRODUCTO -->
+    <div id="tab-nuevo" class="tab-content">
+        <form id="formProducto">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Código Producto:</label>
+                    <input type="text" name="codigo_producto" placeholder="ej: PROD001" required>
+                </div>
+                <div class="form-group">
+                    <label>Nombre Producto:</label>
+                    <input type="text" name="nombre_producto" placeholder="ej: Laptop HP" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Categoría:</label>
+                    <select name="id_categoria" required>
+                        <option value="">Seleccionar categoría...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Precio Compra ($):</label>
+                    <input type="number" name="precio_compra" placeholder="0.00" step="0.01" min="0" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Precio Venta ($):</label>
+                    <input type="number" name="precio_venta" placeholder="0.00" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Stock Actual:</label>
+                    <input type="number" name="stock_actual" placeholder="0" min="0" value="0" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Stock Mínimo:</label>
+                    <input type="number" name="stock_minimo" placeholder="10" min="0" value="10" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-success btn-block">✓ Crear Producto</button>
+        </form>
+    </div>
+
+    <!-- TAB 2: AGREGAR STOCK -->
+    <div id="tab-stock" class="tab-content" style="display: none;">
+        <form id="formStock">
+            <div class="form-group">
+                <label>Buscar Producto (Código):</label>
+                <input type="text" id="buscarCodigo" placeholder="ej: PROD001" autocomplete="off">
+                <div id="resultadosBusqueda" style="margin-top: 1rem;"></div>
+            </div>
+
+            <div id="productoSeleccionado" style="display: none; background: #f0f9ff; padding: 1.5rem; border-radius: 8px; margin: 1.5rem 0; border-left: 4px solid #3b82f6;">
+                <h4 style="color: #1e40af; margin-bottom: 0.5rem;" id="nombreProductoSeleccionado"></h4>
+                <p style="margin: 0.5rem 0; color: #0c2d6b;">
+                    <strong>Código:</strong> <span id="codigoProductoSeleccionado"></span>
+                </p>
+                <p style="margin: 0.5rem 0; color: #0c2d6b;">
+                    <strong>Stock Actual:</strong> <span id="stockActualProducto"></span>
+                </p>
+            </div>
+
+            <div class="form-group" id="formStockGroup" style="display: none;">
+                <label>Stock a Agregar:</label>
+                <input type="number" id="stockAgregar" placeholder="0" min="1" required>
+                <small style="display: block; color: #64748b; margin-top: 0.5rem;">⚠️ Solo se aceptan números positivos</small>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block" id="btnAgregarStock" style="display: none;">✓ Agregar Stock</button>
+        </form>
+    </div>
+</div>
+
+<style>
+    .tab-btn.active {
+        border-bottom: 3px solid #6366f1 !important;
+        color: #6366f1 !important;
+    }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let productoSeleccionado = null;
+
+function cambiarTab(tab) {
+    // Ocultar todos los tabs
+    document.getElementById('tab-nuevo').style.display = 'none';
+    document.getElementById('tab-stock').style.display = 'none';
+    
+    // Mostrar el tab seleccionado
+    document.getElementById('tab-' + tab).style.display = 'block';
+    
+    // Actualizar estilos de botones
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.borderBottom = 'none';
+        btn.style.color = '#64748b';
+    });
+    event.target.classList.add('active');
+    event.target.style.borderBottom = '3px solid #6366f1';
+    event.target.style.color = '#6366f1';
+}
+
+async function cargarCategorias() {
+    const categorias = await hacerRequest('/api/categorias');
+    const select = document.querySelector('select[name="id_categoria"]');
+    
+    if (categorias && categorias.length > 0) {
+        categorias.forEach(c => {
+            select.innerHTML += `<option value="${c.id_categoria}">${c.nombre_categoria}</option>`;
+        });
+    }
+}
+
+// CREAR NUEVO PRODUCTO
+document.getElementById('formProducto').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const datos = {
+        codigo_producto: e.target.codigo_producto.value.trim(),
+        nombre_producto: e.target.nombre_producto.value.trim(),
+        id_categoria: parseInt(e.target.id_categoria.value),
+        precio_compra: parseFloat(e.target.precio_compra.value),
+        precio_venta: parseFloat(e.target.precio_venta.value),
+        stock_actual: parseInt(e.target.stock_actual.value),
+        stock_minimo: parseInt(e.target.stock_minimo.value)
+    };
+    
+    if (datos.stock_actual < 0 || datos.stock_minimo < 0) {
+        mostrarAlerta('El stock no puede ser negativo', 'danger');
+        return;
+    }
+    
+    if (datos.precio_compra < 0 || datos.precio_venta < 0) {
+        mostrarAlerta('Los precios no pueden ser negativos', 'danger');
+        return;
+    }
+    
+    const resultado = await hacerRequest('/api/productos', 'POST', datos);
+    
+    if (resultado && resultado.exito) {
+        mostrarAlerta('Producto creado exitosamente', 'success');
+        document.getElementById('formProducto').reset();
+    } else {
+        mostrarAlerta(resultado?.error || 'Error al crear producto', 'danger');
+    }
+});
+
+// BUSCAR PRODUCTO POR CÓDIGO
+document.getElementById('buscarCodigo').addEventListener('input', async (e) => {
+    const codigo = e.target.value.trim();
+    const resultados = document.getElementById('resultadosBusqueda');
+    
+    if (!codigo) {
+        resultados.innerHTML = '';
+        return;
+    }
+    
+    const productos = await hacerRequest('/api/productos');
+    const encontrados = productos.filter(p => 
+        p.codigo_producto.toLowerCase().includes(codigo.toLowerCase())
+    );
+    
+    if (encontrados.length === 0) {
+        resultados.innerHTML = '<p style="color: #ef4444;">Producto no encontrado</p>';
+        return;
+    }
+    
+    resultados.innerHTML = encontrados.map(p => `
+        <div style="background: white; padding: 1rem; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 0.5rem; cursor: pointer;" onclick="seleccionarProducto(${p.id_producto}, '${p.codigo_producto}', '${p.nombre_producto}', ${p.stock_actual})">
+            <strong>${p.nombre_producto}</strong><br>
+            Código: ${p.codigo_producto} | Stock: ${p.stock_actual}
+        </div>
+    `).join('');
+});
+
+function seleccionarProducto(id, codigo, nombre, stock) {
+    productoSeleccionado = { id, codigo, nombre, stock };
+    
+    document.getElementById('nombreProductoSeleccionado').textContent = nombre;
+    document.getElementById('codigoProductoSeleccionado').textContent = codigo;
+    document.getElementById('stockActualProducto').textContent = stock;
+    document.getElementById('productoSeleccionado').style.display = 'block';
+    document.getElementById('formStockGroup').style.display = 'block';
+    document.getElementById('btnAgregarStock').style.display = 'block';
+    document.getElementById('resultadosBusqueda').innerHTML = '';
+}
+
+// AGREGAR STOCK
+document.getElementById('formStock').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (!productoSeleccionado) {
+        mostrarAlerta('Selecciona un producto primero', 'danger');
+        return;
+    }
+    
+    const stockAgregar = parseInt(document.getElementById('stockAgregar').value);
+    
+    if (stockAgregar <= 0) {
+        mostrarAlerta('Debes agregar una cantidad positiva', 'danger');
+        return;
+    }
+    
+    if (stockAgregar < 0) {
+        mostrarAlerta('No se permiten números negativos', 'danger');
+        return;
+    }
+    
+    // Calcular nuevo stock
+    const nuevoStock = productoSeleccionado.stock + stockAgregar;
+    
+    const datos = {
+        codigo_producto: productoSeleccionado.codigo,
+        nombre_producto: productoSeleccionado.nombre,
+        id_categoria: 1,
+        precio_compra: 0,
+        precio_venta: 0,
+        stock_actual: nuevoStock,
+        stock_minimo: 0,
+        es_actualizacion_stock: true
+    };
+    
+    const resultado = await hacerRequest('/api/actualizar-stock', 'POST', datos);
+    
+    if (resultado && resultado.exito) {
+        mostrarAlerta(`Stock actualizado: +${stockAgregar} unidades`, 'success');
+        document.getElementById('formStock').reset();
+        document.getElementById('productoSeleccionado').style.display = 'none';
+        document.getElementById('formStockGroup').style.display = 'none';
+        document.getElementById('btnAgregarStock').style.display = 'none';
+        productoSeleccionado = null;
+    } else {
+        mostrarAlerta(resultado?.error || 'Error al actualizar stock', 'danger');
+    }
+});
+
+document.addEventListener('DOMContentLoaded', cargarCategorias);
+</script>
+{% endblock %}
