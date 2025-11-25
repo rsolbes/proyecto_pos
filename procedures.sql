@@ -1,10 +1,8 @@
--- =====================================================
--- STORED PROCEDURES Y FUNCIONES PARA POS - CORREGIDOS
--- =====================================================
+-- STORED PROCEDURES
 
 USE pos_system;
 
--- Limpiar procedures antiguos
+-- Revisar si las procedures ya existen, si existen se borran para volverlas a hacer.
 DROP PROCEDURE IF EXISTS sp_crear_usuario;
 DROP PROCEDURE IF EXISTS sp_productos_bajo_stock;
 DROP PROCEDURE IF EXISTS sp_actualizar_stock;
@@ -16,7 +14,6 @@ DROP FUNCTION IF EXISTS obtener_nombre_cliente;
 
 DELIMITER $$
 
--- FUNCIÓN: obtener_nombre_cliente
 CREATE FUNCTION obtener_nombre_cliente(p_id_cliente INT)
 RETURNS VARCHAR(201) DETERMINISTIC
 READS SQL DATA
@@ -31,7 +28,6 @@ BEGIN
     RETURN COALESCE(v_nombre_completo, 'Cliente Desconocido');
 END$$
 
--- SP 1: CREAR USUARIO
 CREATE PROCEDURE sp_crear_usuario(
     IN p_nombre VARCHAR(100),
     IN p_email VARCHAR(100),
@@ -71,7 +67,6 @@ sp_block: BEGIN
     END IF;
 END$$
 
--- SP 2: PRODUCTOS BAJO STOCK
 CREATE PROCEDURE sp_productos_bajo_stock()
 BEGIN
     SELECT
@@ -89,7 +84,6 @@ BEGIN
     ORDER BY deficit DESC;
 END$$
 
--- SP 3: ACTUALIZAR STOCK
 CREATE PROCEDURE sp_actualizar_stock(
     IN p_id_producto INT,
     IN p_cantidad INT,
@@ -153,7 +147,6 @@ sp_block: BEGIN
     END IF;
 END$$
 
--- SP 4: REPORTE VENTAS
 CREATE PROCEDURE sp_reporte_ventas(
     IN p_fecha_inicio DATE,
     IN p_fecha_fin DATE
@@ -175,7 +168,6 @@ BEGIN
     ORDER BY DATE(v.fecha_venta) DESC;
 END$$
 
--- SP 5: REPORTE PRODUCTOS
 CREATE PROCEDURE sp_reporte_productos()
 BEGIN
     SELECT
@@ -196,7 +188,6 @@ BEGIN
     ORDER BY c.nombre_categoria, p.nombre_producto;
 END$$
 
--- SP 6: REGISTRAR VENTA
 CREATE PROCEDURE sp_registrar_venta(
     IN p_id_usuario INT,
     IN p_id_cliente INT,
@@ -303,7 +294,6 @@ sp_block: BEGIN
     SET p_mensaje = 'Venta registrada exitosamente';
 END$$
 
--- SP 7: CANCELAR VENTA
 CREATE PROCEDURE sp_cancelar_venta(
     IN p_id_venta INT,
     IN p_motivo VARCHAR(200),

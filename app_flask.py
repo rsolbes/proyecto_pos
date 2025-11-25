@@ -4,7 +4,7 @@ from conexion_pos import ConexionPOS
 import json
 
 app = Flask(__name__)
-app.secret_key = 'tu_clave_secreta_super_segura_12345'
+app.secret_key = 'clave_secreta'
 
 def requerir_login(f):
     @wraps(f)
@@ -169,7 +169,6 @@ def usuarios():
                          usuario_nombre=session.get('usuario_nombre'),
                          usuario_rol=session.get('usuario_rol'))
 
-# ==================== API ROUTES - PRODUCTOS ====================
 
 @app.route('/api/productos', methods=['GET'])
 @requerir_login
@@ -209,7 +208,6 @@ def api_crear_producto():
         
         conn = ConexionPOS()
         
-        # Si es actualización
         if datos.get('es_actualizacion'):
             resultado = conn.actualizar_producto(
                 datos.get('codigo_producto').strip(),
@@ -220,7 +218,6 @@ def api_crear_producto():
                 stock_minimo
             )
         else:
-            # Si es nuevo producto
             resultado = conn.crear_producto(
                 datos.get('codigo_producto').strip(),
                 datos.get('nombre_producto').strip(),
@@ -272,7 +269,6 @@ def api_actualizar_stock():
     except Exception as e:
         return jsonify({'exito': False, 'error': str(e)})
 
-# ==================== API ROUTES - CLIENTES ====================
 
 @app.route('/api/clientes', methods=['GET'])
 @requerir_login
@@ -354,7 +350,6 @@ def api_actualizar_cliente(id_cliente):
     except Exception as e:
         return jsonify({'exito': False, 'error': str(e)})
 
-# ==================== API ROUTES - VENTAS ====================
 
 @app.route('/api/ventas-list', methods=['GET'])
 @requerir_admin
@@ -382,12 +377,10 @@ def api_registrar_venta():
         if not productos:
             return jsonify({'exito': False, 'error': 'Agrega al menos un producto'})
         
-        # Validar que las cantidades sean positivas
         for p in productos:
             if int(p.get('cantidad', 0)) <= 0:
                 return jsonify({'exito': False, 'error': 'La cantidad debe ser mayor a 0'})
         
-        # Validar stock disponible
         conn = ConexionPOS()
         for p in productos:
             producto = conn.obtener_producto_por_id(p['id_producto'])
@@ -402,8 +395,7 @@ def api_registrar_venta():
         id_usuario = session.get('usuario_id')
         id_cliente = datos.get('id_cliente')
         metodo_pago = datos.get('metodo_pago')
-        descuento = max(0, float(datos.get('descuento', 0)))  # No permitir descuentos negativos
-        
+        descuento = max(0, float(datos.get('descuento', 0)))
         productos_json = json.dumps([
             {'id_producto': p['id_producto'], 'cantidad': int(p['cantidad'])}
             for p in productos
@@ -425,7 +417,6 @@ def api_registrar_venta():
         print(f"Error: {e}")
         return jsonify({'exito': False, 'error': str(e)})
 
-# ==================== API ROUTES - USUARIOS ====================
 
 @app.route('/api/usuarios', methods=['GET'])
 @requerir_admin
@@ -470,7 +461,6 @@ def api_crear_usuario():
     except Exception as e:
         return jsonify({'exito': False, 'error': str(e)})
 
-# ==================== API ROUTES - REPORTES ====================
 
 @app.route('/api/reportes/ventas', methods=['POST'])
 @requerir_admin
@@ -489,7 +479,6 @@ def api_reportes_ventas():
         print(f"Error: {e}")
         return jsonify([])
 
-# ==================== API ROUTES - CATEGORÍAS ====================
 
 @app.route('/api/categorias', methods=['GET'])
 @requerir_login
@@ -502,7 +491,6 @@ def api_categorias():
     except Exception as e:
         return jsonify([])
 
-# ==================== MANEJO DE ERRORES ====================
 
 @app.errorhandler(404)
 def no_encontrado(error):

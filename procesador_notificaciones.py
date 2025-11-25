@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Sistema de notificaciones por correo para POS
 Procesa las notificaciones almacenadas en la base de datos y las envía
@@ -13,7 +12,6 @@ import logging
 import time
 from configparser import ConfigParser
 
-# Configuración de logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -133,23 +131,19 @@ class GestorCorreo:
     def enviar_correo(self, destinatario, asunto, cuerpo):
         """Envía un correo electrónico"""
         try:
-            # Crear mensaje
             mensaje = MIMEMultipart('alternative')
             mensaje['Subject'] = asunto
             mensaje['From'] = self.config_correo['remitente']
             mensaje['To'] = destinatario
             
-            # Convertir texto a HTML
             html = self._convertir_a_html(cuerpo)
             
-            # Añadir partes al mensaje
             parte_texto = MIMEText(cuerpo, 'plain')
             parte_html = MIMEText(html, 'html')
             
             mensaje.attach(parte_texto)
             mensaje.attach(parte_html)
             
-            # Enviar correo
             servidor_smtp = smtplib.SMTP(
                 self.config_correo['smtp_server'],
                 self.config_correo['smtp_port']
@@ -205,13 +199,11 @@ class ProcesadorNotificaciones:
     
     def procesar_notificaciones(self):
         """Procesa todas las notificaciones pendientes"""
-        # Conectar a base de datos
         if not self.gestor_bd.conectar():
             logger.error("No se pudo conectar a la base de datos")
             return False
         
         try:
-            # Obtener notificaciones pendientes
             notificaciones = self.gestor_bd.obtener_notificaciones_pendientes()
             
             if not notificaciones:
@@ -220,18 +212,15 @@ class ProcesadorNotificaciones:
             
             logger.info(f"Procesando {len(notificaciones)} notificaciones")
             
-            # Procesar cada notificación
             for notif in notificaciones:
                 try:
                     logger.info(f"Enviando notificación {notif['id_notificacion']} a {notif['destinatario']}")
                     
-                    # Enviar correo
                     if self.gestor_correo.enviar_correo(
                         notif['destinatario'],
                         notif['asunto'],
                         notif['cuerpo']
                     ):
-                        # Marcar como enviada
                         self.gestor_bd.marcar_notificacion_enviada(notif['id_notificacion'])
                         logger.info(f"Notificación {notif['id_notificacion']} marcada como enviada")
                     else:
@@ -241,7 +230,6 @@ class ProcesadorNotificaciones:
                             "Fallo al conectar con servidor SMTP"
                         )
                     
-                    # Pequeña pausa entre correos
                     time.sleep(1)
                     
                 except Exception as error:
@@ -273,15 +261,11 @@ class ProcesadorNotificaciones:
 def main():
     """Función principal"""
     try:
-        # Cargar configuración
         configurador = ConfiguradorNotificaciones()
         config_bd = configurador.obtener_configuracion_bd()
         config_correo = configurador.obtener_configuracion_correo()
         
-        # Crear procesador
         procesador = ProcesadorNotificaciones(config_bd, config_correo)
-        
-        # Ejecutar continuamente
         procesador.ejecutar_continuamente(intervalo_segundos=300)
         
     except Exception as error:

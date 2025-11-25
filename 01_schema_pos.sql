@@ -1,22 +1,10 @@
--- =====================================================
--- SCHEMA BASE DE DATOS POS
--- =====================================================
--- Sistema: POS (Point of Sale)
--- Versión: 2.0 - Corregida (Nov 2025)
--- BD: pos_system
--- Ejecutar: mysql -u root -p < 01_schema_pos.sql
-
--- =====================================================
--- CREAR BASE DE DATOS
--- =====================================================
+-- CREAMOS LA BASE DE DATOS
 
 DROP DATABASE IF EXISTS pos_system;
 CREATE DATABASE pos_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE pos_system;
 
--- =====================================================
--- CREAR TABLAS
--- =====================================================
+-- CREAMOS LAS TABLAS
 
 -- 1. CATEGORÍAS
 CREATE TABLE categorias (
@@ -146,9 +134,7 @@ CREATE TABLE notificaciones_correo (
     INDEX idx_fecha (fecha_creacion)
 );
 
--- =====================================================
--- INSERTAR DATOS INICIALES
--- =====================================================
+-- POBLAMOS LA BASE DE DATOS (DATOS PROPUESTOS POR IA)
 
 -- Categorías
 INSERT INTO categorias (nombre_categoria, descripcion) VALUES
@@ -188,13 +174,11 @@ INSERT INTO clientes (nombre_cliente, apellido_cliente, email_cliente, telefono,
 ('Ana', 'López', 'ana.lopez@email.com', '3187654321', 'regular', '1222222222', 'Barranquilla'),
 ('Pedro', 'Sánchez', 'pedro.sanchez@email.com', '3203333333', 'regular', '1333333333', 'Bogotá');
 
--- =====================================================
--- CREAR TRIGGERS
--- =====================================================
+-- CREAMOS LOS TRIGGERS
 
 DELIMITER $$
 
--- Trigger: Validar detalle de venta
+-- Validamos los detalles de la venta
 CREATE TRIGGER trigger_validar_detalle_venta
 BEFORE INSERT ON detalles_venta
 FOR EACH ROW
@@ -209,7 +193,7 @@ BEGIN
     SET NEW.subtotal_linea = (NEW.cantidad * NEW.precio_unitario) - COALESCE(NEW.descuento_linea, 0);
 END$$
 
--- Trigger: Notificar bajo stock
+-- Notificamos cuando hay stock bajo
 CREATE TRIGGER trigger_notificar_bajo_stock
 AFTER UPDATE ON productos
 FOR EACH ROW
@@ -233,7 +217,7 @@ Por favor, realice un nuevo pedido.'
   END IF;
 END$$
 
--- Trigger: Notificar venta registrada (principal)
+-- Notifica cuadno se registra una venta
 CREATE TRIGGER trigger_notificar_venta
 AFTER INSERT ON ventas
 FOR EACH ROW
@@ -257,49 +241,3 @@ Fecha: ', DATE_FORMAT(NEW.fecha_venta, '%d/%m/%Y %H:%i:%s')
 END$$
 
 DELIMITER ;
-
--- =====================================================
--- VERIFICACIÓN
--- =====================================================
-
--- Mostrar tablas creadas
-SHOW TABLES;
-
--- Ver estructura de tablas principales
-DESCRIBE productos;
-DESCRIBE usuarios;
-DESCRIBE ventas;
-DESCRIBE detalles_venta;
-
--- Ver triggers
-SHOW TRIGGERS;
-
--- =====================================================
--- INFORMACIÓN
--- =====================================================
-/*
-CAMBIOS EN VERSIÓN 2.0:
-✓ Agregadas validaciones CHECK en precios y stock
-✓ Índices optimizados para búsquedas
-✓ Email correo actualizado a rsolbes@hotmail.com en triggers
-✓ Trigger principal de venta actualizado
-✓ Datos de ejemplo incluidos
-✓ Comentarios mejorados
-✓ Charset UTF8MB4 para soporte internacional
-✓ Cascade DELETE para detalles_venta
-
-USUARIOS INICIALES:
-- admin@empresa.com / admin123 (Admin)
-- juan@empresa.com / juan123 (Vendedor)
-- maria@empresa.com / maria123 (Vendedor)
-- carlos@empresa.com / carlos123 (Gerente)
-- roberto@empresa.com / roberto123 (Vendedor)
-- rsolbes@hotmail.com / rodrigo123 (Admin)
-
-PRÓXIMOS PASOS:
-1. Importar procedures_final.sql
-2. Configurar app_flask.py con credenciales
-3. Ejecutar aplicación
-
-Ejecutar: mysql -u root -p < 01_schema_pos.sql
-*/
