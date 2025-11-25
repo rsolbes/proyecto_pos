@@ -2,7 +2,13 @@
 
 Sistema de Punto de Venta desarrollado con Flask, MySQL y JavaScript vanilla.
 
-## 🎯 Características
+## USUARIOS (utilizando la schema adjunta)
+usuario, contraseña
+admin@empresa.com, admin123 (administrador)
+juan@empresa.com, juan123, (vendedor),
+carlos@empresa.com, carlos123 (gerente)
+
+## Características
 
 - ✅ Gestión de ventas en tiempo real
 - ✅ Control de inventario/stock
@@ -13,7 +19,7 @@ Sistema de Punto de Venta desarrollado con Flask, MySQL y JavaScript vanilla.
 - ✅ Sistema de permisos por rol
 - ✅ Interfaz responsiva y moderna
 
-## 🚀 Instalación
+## Instalación
 
 ### Requisitos
 - Python 3.8+
@@ -136,3 +142,4 @@ MIT
 ## 👨‍💻 Autor
 
 Rodrigo Solbes
+Emannuel Izaguirre
