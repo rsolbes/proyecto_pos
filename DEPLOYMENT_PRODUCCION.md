@@ -67,7 +67,7 @@ sudo apt install -y certbot python3-certbot-nginx
 ```bash
 # Clonar repositorio
 cd /home/usuario
-git clone https://github.com/tu_usuario/proyecto_pos.git
+git clone https://github.com/rsolbes/proyecto_pos
 cd proyecto_pos
 
 # Crear entorno virtual

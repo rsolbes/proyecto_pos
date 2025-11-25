@@ -8,7 +8,7 @@ class ConexionPOS:
             self.conexion = mysql.connector.connect(
                 host='localhost',
                 user='root',
-                password='123456',
+                password='Rsolbdav1209.',
                 database='pos_system'
             )
             self.cursor = self.conexion.cursor(dictionary=True)

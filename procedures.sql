@@ -1,15 +1,10 @@
 -- =====================================================
--- STORED PROCEDURES Y FUNCIONES PARA POS
+-- STORED PROCEDURES Y FUNCIONES PARA POS - CORREGIDOS
 -- =====================================================
--- Ejecutar con: mysql -u root -p pos_system < procedures_final.sql
--- Versión: 2.0 - Corregida y actualizada (Nov 2025)
 
 USE pos_system;
 
--- =====================================================
--- LIMPIAR PROCEDURES ANTIGUOS
--- =====================================================
-
+-- Limpiar procedures antiguos
 DROP PROCEDURE IF EXISTS sp_crear_usuario;
 DROP PROCEDURE IF EXISTS sp_productos_bajo_stock;
 DROP PROCEDURE IF EXISTS sp_actualizar_stock;
@@ -19,12 +14,9 @@ DROP PROCEDURE IF EXISTS sp_registrar_venta;
 DROP PROCEDURE IF EXISTS sp_cancelar_venta;
 DROP FUNCTION IF EXISTS obtener_nombre_cliente;
 
--- =====================================================
--- CREAR FUNCIONES
--- =====================================================
-
 DELIMITER $$
 
+-- FUNCIÓN: obtener_nombre_cliente
 CREATE FUNCTION obtener_nombre_cliente(p_id_cliente INT)
 RETURNS VARCHAR(201) DETERMINISTIC
 READS SQL DATA
@@ -39,11 +31,7 @@ BEGIN
     RETURN COALESCE(v_nombre_completo, 'Cliente Desconocido');
 END$$
 
--- =====================================================
--- CREAR STORED PROCEDURES
--- =====================================================
-
--- 1. SP CREAR USUARIO
+-- SP 1: CREAR USUARIO
 CREATE PROCEDURE sp_crear_usuario(
     IN p_nombre VARCHAR(100),
     IN p_email VARCHAR(100),
@@ -52,24 +40,21 @@ CREATE PROCEDURE sp_crear_usuario(
     OUT p_id_usuario INT,
     OUT p_mensaje VARCHAR(500)
 )
-BEGIN
+sp_block: BEGIN
     DECLARE v_usuario_existe INT;
     
-    -- Validar que el email no esté vacío
     IF p_email IS NULL OR p_email = '' THEN
         SET p_mensaje = 'El email es requerido';
         SET p_id_usuario = -1;
-        LEAVE;
+        LEAVE sp_block;
     END IF;
     
-    -- Validar que la contraseña no esté vacía
     IF p_contraseña IS NULL OR p_contraseña = '' THEN
         SET p_mensaje = 'La contraseña es requerida';
         SET p_id_usuario = -1;
-        LEAVE;
+        LEAVE sp_block;
     END IF;
     
-    -- Verificar si el email ya existe
     SELECT COUNT(*) INTO v_usuario_existe
     FROM usuarios
     WHERE email = p_email;
@@ -86,7 +71,7 @@ BEGIN
     END IF;
 END$$
 
--- 2. SP PRODUCTOS BAJO STOCK
+-- SP 2: PRODUCTOS BAJO STOCK
 CREATE PROCEDURE sp_productos_bajo_stock()
 BEGIN
     SELECT
@@ -104,7 +89,7 @@ BEGIN
     ORDER BY deficit DESC;
 END$$
 
--- 3. SP ACTUALIZAR STOCK CON VALIDACIONES
+-- SP 3: ACTUALIZAR STOCK
 CREATE PROCEDURE sp_actualizar_stock(
     IN p_id_producto INT,
     IN p_cantidad INT,
@@ -113,32 +98,29 @@ CREATE PROCEDURE sp_actualizar_stock(
     IN p_motivo VARCHAR(200),
     OUT p_mensaje VARCHAR(500)
 )
-BEGIN
+sp_block: BEGIN
     DECLARE v_stock_anterior INT;
     DECLARE v_stock_nuevo INT;
     DECLARE v_producto_existe INT;
 
-    -- Validar que la cantidad no sea negativa
     IF p_cantidad < 0 THEN
         SET p_mensaje = 'La cantidad no puede ser negativa';
-        LEAVE;
+        LEAVE sp_block;
     END IF;
 
-    -- Verificar que el producto existe
     SELECT COUNT(*) INTO v_producto_existe
     FROM productos
     WHERE id_producto = p_id_producto;
     
     IF v_producto_existe = 0 THEN
         SET p_mensaje = 'El producto no existe';
-        LEAVE;
+        LEAVE sp_block;
     END IF;
 
     SELECT stock_actual INTO v_stock_anterior
     FROM productos
     WHERE id_producto = p_id_producto;
 
-    -- Calcular nuevo stock según tipo de movimiento
     IF p_tipo_movimiento = 'entrada' THEN
         SET v_stock_nuevo = v_stock_anterior + p_cantidad;
     ELSEIF p_tipo_movimiento = 'salida' OR p_tipo_movimiento = 'devolucion' THEN
@@ -147,20 +129,17 @@ BEGIN
         SET v_stock_nuevo = p_cantidad;
     ELSE
         SET p_mensaje = 'Tipo de movimiento no válido';
-        LEAVE;
+        LEAVE sp_block;
     END IF;
 
-    -- Validar que no sea negativo
     IF v_stock_nuevo < 0 THEN
-        SET p_mensaje = 'No hay stock suficiente. Stock disponible: ' + CAST(v_stock_anterior AS CHAR);
-        LEAVE;
+        SET p_mensaje = CONCAT('No hay stock suficiente. Stock disponible: ', v_stock_anterior);
+        LEAVE sp_block;
     ELSE
-        -- Actualizar stock
         UPDATE productos
         SET stock_actual = v_stock_nuevo
         WHERE id_producto = p_id_producto;
 
-        -- Registrar movimiento
         INSERT INTO movimientos_inventario (
             id_producto, id_usuario, tipo_movimiento,
             cantidad_movimiento, motivo, cantidad_anterior,
@@ -174,7 +153,7 @@ BEGIN
     END IF;
 END$$
 
--- 4. SP REPORTE VENTAS
+-- SP 4: REPORTE VENTAS
 CREATE PROCEDURE sp_reporte_ventas(
     IN p_fecha_inicio DATE,
     IN p_fecha_fin DATE
@@ -196,7 +175,7 @@ BEGIN
     ORDER BY DATE(v.fecha_venta) DESC;
 END$$
 
--- 5. SP REPORTE PRODUCTOS
+-- SP 5: REPORTE PRODUCTOS
 CREATE PROCEDURE sp_reporte_productos()
 BEGIN
     SELECT
@@ -217,7 +196,7 @@ BEGIN
     ORDER BY c.nombre_categoria, p.nombre_producto;
 END$$
 
--- 6. SP REGISTRAR VENTA CON VALIDACIONES MEJORADAS
+-- SP 6: REGISTRAR VENTA
 CREATE PROCEDURE sp_registrar_venta(
     IN p_id_usuario INT,
     IN p_id_cliente INT,
@@ -228,7 +207,7 @@ CREATE PROCEDURE sp_registrar_venta(
     OUT p_numero_venta VARCHAR(50),
     OUT p_mensaje VARCHAR(500)
 )
-BEGIN
+sp_block: BEGIN
     DECLARE v_subtotal DECIMAL(12, 2) DEFAULT 0;
     DECLARE v_impuesto DECIMAL(12, 2) DEFAULT 0;
     DECLARE v_total DECIMAL(12, 2) DEFAULT 0;
@@ -244,59 +223,49 @@ BEGIN
     SET v_total_items = JSON_LENGTH(p_productos_json);
     SET v_descuento_valido = COALESCE(p_descuento, 0);
     
-    -- Validar que no haya descuento negativo
     IF v_descuento_valido < 0 THEN
         SET p_mensaje = 'El descuento no puede ser negativo';
         SET p_id_venta_generada = -1;
-        LEAVE;
+        LEAVE sp_block;
     END IF;
     
-    -- Validar que haya productos
     IF v_total_items = 0 THEN
         SET p_mensaje = 'No hay productos en la venta';
         SET p_id_venta_generada = -1;
-        LEAVE;
+        LEAVE sp_block;
     END IF;
 
-    -- Generar número de venta único
     SET p_numero_venta = CONCAT('V-', DATE_FORMAT(NOW(), '%Y%m%d'), '-', LPAD(FLOOR(RAND() * 10000), 5, '0'));
 
-    -- Primera iteración: validar stock y calcular subtotal
     WHILE contador_iteracion < v_total_items DO
         SET v_id_producto = JSON_UNQUOTE(JSON_EXTRACT(p_productos_json, CONCAT('$[', contador_iteracion, '].id_producto')));
         SET v_cantidad = JSON_UNQUOTE(JSON_EXTRACT(p_productos_json, CONCAT('$[', contador_iteracion, '].cantidad')));
 
-        -- Validar cantidad positiva
         IF v_cantidad <= 0 THEN
             SET p_mensaje = CONCAT('La cantidad debe ser positiva para producto ID: ', v_id_producto);
             SET p_id_venta_generada = -1;
-            LEAVE;
+            LEAVE sp_block;
         END IF;
 
-        -- Obtener información del producto
         SELECT precio_venta, stock_actual
         INTO v_precio_unitario, v_stock_actual
         FROM productos
         WHERE id_producto = v_id_producto;
 
-        -- Validar stock
         IF v_stock_actual < v_cantidad THEN
             SET p_mensaje = CONCAT('Stock insuficiente para producto ID: ', v_id_producto, ' (Disponible: ', v_stock_actual, ')');
             SET p_id_venta_generada = -1;
-            LEAVE;
+            LEAVE sp_block;
         END IF;
 
         SET v_subtotal_linea = v_cantidad * v_precio_unitario;
         SET v_subtotal = v_subtotal + v_subtotal_linea;
-
         SET contador_iteracion = contador_iteracion + 1;
     END WHILE;
 
-    -- Calcular impuesto (19% IVA)
     SET v_impuesto = ROUND(v_subtotal * 0.19, 2);
     SET v_total = v_subtotal + v_impuesto - v_descuento_valido;
 
-    -- Insertar venta
     INSERT INTO ventas (
         id_usuario, id_cliente, numero_venta, subtotal, 
         impuesto, descuento, total, metodo_pago, estado
@@ -307,7 +276,6 @@ BEGIN
 
     SET p_id_venta_generada = LAST_INSERT_ID();
 
-    -- Segunda iteración: insertar detalles y actualizar stock
     SET contador_iteracion = 0;
     WHILE contador_iteracion < v_total_items DO
         SET v_id_producto = JSON_UNQUOTE(JSON_EXTRACT(p_productos_json, CONCAT('$[', contador_iteracion, '].id_producto')));
@@ -317,7 +285,6 @@ BEGIN
 
         SET v_subtotal_linea = v_cantidad * v_precio_unitario;
 
-        -- Insertar detalle de venta
         INSERT INTO detalles_venta (
             id_venta, id_producto, cantidad, 
             precio_unitario, descuento_linea, subtotal_linea
@@ -326,7 +293,6 @@ BEGIN
             v_precio_unitario, 0, v_subtotal_linea
         );
 
-        -- Actualizar stock del producto (disminuir)
         UPDATE productos
         SET stock_actual = stock_actual - v_cantidad
         WHERE id_producto = v_id_producto;
@@ -337,13 +303,13 @@ BEGIN
     SET p_mensaje = 'Venta registrada exitosamente';
 END$$
 
--- 7. SP CANCELAR VENTA CON RESTAURACIÓN DE STOCK
+-- SP 7: CANCELAR VENTA
 CREATE PROCEDURE sp_cancelar_venta(
     IN p_id_venta INT,
     IN p_motivo VARCHAR(200),
     OUT p_mensaje VARCHAR(500)
 )
-BEGIN
+sp_block: BEGIN
     DECLARE v_venta_existe INT;
     DECLARE v_estado_venta VARCHAR(20);
     DECLARE v_id_producto INT;
@@ -353,23 +319,20 @@ BEGIN
         SELECT id_producto, cantidad FROM detalles_venta WHERE id_venta = p_id_venta;
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_cursor_done = TRUE;
 
-    -- Verificar que la venta existe
     SELECT COUNT(*), estado INTO v_venta_existe, v_estado_venta
     FROM ventas
     WHERE id_venta = p_id_venta;
 
     IF v_venta_existe = 0 THEN
         SET p_mensaje = 'La venta no existe';
-        LEAVE;
+        LEAVE sp_block;
     END IF;
 
-    -- Validar que no esté ya cancelada
     IF v_estado_venta = 'cancelada' THEN
         SET p_mensaje = 'La venta ya ha sido cancelada';
-        LEAVE;
+        LEAVE sp_block;
     END IF;
 
-    -- Restaurar stock de todos los productos
     OPEN cursor_detalles;
     cursor_loop: LOOP
         FETCH cursor_detalles INTO v_id_producto, v_cantidad;
@@ -383,7 +346,6 @@ BEGIN
     END LOOP;
     CLOSE cursor_detalles;
 
-    -- Marcar venta como cancelada
     UPDATE ventas
     SET estado = 'cancelada', notas = CONCAT('Cancelada: ', p_motivo)
     WHERE id_venta = p_id_venta;
@@ -391,56 +353,4 @@ BEGIN
     SET p_mensaje = 'Venta cancelada y stock restaurado exitosamente';
 END$$
 
--- 8. SP OBTENER RESUMEN DIARIO
-CREATE PROCEDURE sp_resumen_diario()
-BEGIN
-    SELECT
-        COUNT(DISTINCT id_venta) as total_ventas,
-        COUNT(DISTINCT id_cliente) as clientes_atendidos,
-        SUM(total) as total_ingresos,
-        AVG(total) as ticket_promedio,
-        MIN(total) as ticket_minimo,
-        MAX(total) as ticket_maximo,
-        SUM(descuento) as descuentos_totales,
-        NOW() as fecha_reporte
-    FROM ventas
-    WHERE DATE(fecha_venta) = CURDATE()
-    AND estado = 'completada';
-END$$
-
--- 9. SP OBTENER PRODUCTOS MÁS VENDIDOS
-CREATE PROCEDURE sp_productos_mas_vendidos(
-    IN p_dias INT
-)
-BEGIN
-    SELECT
-        p.id_producto,
-        p.codigo_producto,
-        p.nombre_producto,
-        c.nombre_categoria,
-        SUM(dv.cantidad) as cantidad_vendida,
-        SUM(dv.subtotal_linea) as total_vendido,
-        ROUND(SUM(dv.subtotal_linea) / SUM(dv.cantidad), 2) as precio_promedio
-    FROM detalles_venta dv
-    JOIN productos p ON dv.id_producto = p.id_producto
-    JOIN categorias c ON p.id_categoria = c.id_categoria
-    JOIN ventas v ON dv.id_venta = v.id_venta
-    WHERE DATE(v.fecha_venta) >= DATE_SUB(CURDATE(), INTERVAL p_dias DAY)
-    AND v.estado = 'completada'
-    GROUP BY p.id_producto, p.codigo_producto, p.nombre_producto, c.nombre_categoria
-    ORDER BY cantidad_vendida DESC
-    LIMIT 10;
-END$$
-
 DELIMITER ;
-
--- =====================================================
--- VERIFICACIÓN
--- =====================================================
-
--- Verificar que se crearon correctamente
-SHOW PROCEDURES;
-SHOW FUNCTIONS;
-
--- Verificar función
-SELECT obtener_nombre_cliente(1) as cliente_ejemplo;
